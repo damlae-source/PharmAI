@@ -238,7 +238,6 @@ MODELS = {
     "google/gemma-4-31b-it:free": "Gemma 4 31B — Google",
     "qwen/qwen3-coder:free": "Qwen3 Coder",
     "deepseek/deepseek-r1:free": "DeepSeek R1 — Analitik",
-    "google/gemini-pro-1.5": "Gemini 1.5 Pro (ücretli)",
 }
 
 QUICK_QUESTIONS = [
@@ -251,9 +250,15 @@ QUICK_QUESTIONS = [
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 if "messages"  not in st.session_state: st.session_state.messages  = []
 if "mode"      not in st.session_state: st.session_state.mode      = "🔬 Genel"
-if "api_key"   not in st.session_state: st.session_state.api_key   = ""
 if "model"     not in st.session_state: st.session_state.model     = "openrouter/auto"
 if "pending"   not in st.session_state: st.session_state.pending   = None
+
+# ── API KEY: Secrets > Manuel Giriş ──────────────────────────────────────────
+if "api_key" not in st.session_state:
+    try:
+        st.session_state.api_key = st.secrets["OPENROUTER_API_KEY"]
+    except Exception:
+        st.session_state.api_key = ""
 
 # ── API CALL ──────────────────────────────────────────────────────────────────
 def call_api(api_key: str, model: str, mode: str, history: list) -> str:
@@ -285,16 +290,27 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("**API Anahtarı**")
-    api_input = st.text_input(
-        "OpenRouter API Key",
-        value=st.session_state.api_key,
-        type="password",
-        placeholder="sk-or-v1-...",
-        label_visibility="collapsed",
-    )
-    if api_input:
-        st.session_state.api_key = api_input
+    # API Key: Secrets kontrolü
+    if st.session_state.api_key:
+        st.markdown("""
+        <div style='background:#e8f5ee;border:1px solid rgba(26,122,74,.3);border-radius:8px;
+             padding:.55rem .9rem;margin-bottom:.8rem;font-size:.75rem;color:#1a7a4a;
+             font-family:JetBrains Mono,monospace;'>
+            ✓ API Anahtarı otomatik yüklendi
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("**API Anahtarı**")
+        _manual_key = st.text_input(
+            "OpenRouter API Key",
+            value="",
+            type="password",
+            placeholder="sk-or-v1-...",
+            label_visibility="collapsed",
+        )
+        if _manual_key:
+            st.session_state.api_key = _manual_key
+        st.caption("💡 Kalıcı için: Streamlit Cloud → Settings → Secrets")
 
     st.markdown("**Model**")
     model_choice = st.selectbox(
@@ -413,18 +429,18 @@ else:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── INPUT ─────────────────────────────────────────────────────────────────────
+# ── INPUT (form → Enter ile gönderim) ────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
-col_inp, col_btn = st.columns([5, 1])
-with col_inp:
-    user_input = st.text_input(
-        "Mesaj",
-        placeholder=f"{st.session_state.mode} modunda soru sor...",
-        label_visibility="collapsed",
-        key="user_input_field",
-    )
-with col_btn:
-    send = st.button("Gönder →", use_container_width=True, type="primary")
+with st.form(key="chat_form", clear_on_submit=True):
+    col_inp, col_btn = st.columns([5, 1])
+    with col_inp:
+        user_input = st.text_input(
+            "Mesaj",
+            placeholder=f"{st.session_state.mode} modunda soru sor...",
+            label_visibility="collapsed",
+        )
+    with col_btn:
+        send = st.form_submit_button("Gönder →", use_container_width=True, type="primary")
 
 # ── SEND LOGIC ────────────────────────────────────────────────────────────────
 def process_message(text: str):
